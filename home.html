@@ -547,6 +547,9 @@ body {
         <p>Average time to merge PR (last week): <span id="avg_time_merge_week"></span></p>
         <p>Average time to merge PR (last month): <span id="avg_time_merge_month"></span></p>
         <p>Average number of PR per week: <span id="avg_number_pr_week"></span></p>
+		<p></p>
+		<p>Average response time (last week): <span id="avg_time_reponse_week"></span></p>
+		<p>Average response time (last month): <span id="avg_time_reponse_month"></span></p>
       </div>
     </div>
   </div>
@@ -582,6 +585,11 @@ body {
   const current_repo = urlParams.get('repo') || localStorage.getItem('current_repo') || repositories[0];
   const accountid = localStorage.getItem('bitbucket_accountid');
   const access_token = localStorage.getItem('bitbucket_access_token');
+  const legitReviewers = [
+	"NGUYEN",
+	"PASQUET",
+	"MARTINA"
+  ];
 
   function getBaseApiUrl(repository) {
     return 'https://bitbucket.org/api/2.0/repositories/' + accountid + '/' + repository + '/pullrequests';
@@ -627,8 +635,12 @@ body {
     var counterId = 'pullrequest_status_merged_week';
 	
 	if (isLocal) {
-		document.getElementById(counterId).innerHTML = localStorage.getItem(counterId);
-		return;
+		var storedValue = localStorage.getItem(counterId);
+		
+		if(storedValue) {
+			document.getElementById(counterId).innerHTML = storedValue;
+			return;
+		}		
 	}
 	
 	var today = new Date();
@@ -641,8 +653,12 @@ body {
 	var counterId = 'pullrequest_status_merged_month';
 	
 	if (isLocal) {
-		document.getElementById(counterId).innerHTML = localStorage.getItem(counterId);
-		return;
+		var storedValue = localStorage.getItem(counterId);
+		
+		if(storedValue) {
+			document.getElementById(counterId).innerHTML = storedValue;
+			return;
+		}		
 	}
   
     var today = new Date();
@@ -655,8 +671,12 @@ body {
 	var counterId = 'pullrequest_status_open';
 	
 	if (isLocal) {
-		document.getElementById(counterId).innerHTML = localStorage.getItem(counterId);
-		return;
+		var storedValue = localStorage.getItem(counterId);
+		
+		if(storedValue) {
+			document.getElementById(counterId).innerHTML = storedValue;
+			return;
+		}		
 	}
 	
     var open_status = 'OPEN';
@@ -666,7 +686,7 @@ body {
     countPullRequests(url, counterId);
   }
 
-  function countAverageTimeToMerge (url, counterId, avgHoursMerge) {
+  function countAverageTimeToMerge (url, counterId) {
     var request = new XMLHttpRequest();
     request.open('GET', url, true);
     request.setRequestHeader('Authorization', 'Bearer ' + access_token);
@@ -676,11 +696,6 @@ body {
         if (this.status == 200) {
             var data = JSON.parse(this.responseText);
             var pull_requests = data.values;
-            
-            if (!document.getElementById(counterId).dataset.pr_length)
-              document.getElementById(counterId).dataset.pr_length = pull_requests.length;
-            else
-              document.getElementById(counterId).dataset.pr_length = parseInt(document.getElementById(counterId).dataset.pr_length) + pull_requests.length;
 
             pull_requests.forEach(pr => {
               var createdDate = new Date(pr.created_on);
@@ -694,7 +709,7 @@ body {
             })
 
             if (data.next) {
-              countAverageTimeToMerge(data.next, counterId, avgHoursMerge);
+              countAverageTimeToMerge(data.next, counterId);
             }
             else {
               var hoursArray = document.getElementById(counterId).dataset.hourDifferences.split(',').map(function(x){return parseInt(x,10)})
@@ -731,13 +746,131 @@ body {
 
     return (values[half - 1] + values[half]) / 2.0;
   }
+  
+  function requestComments(url, pullRequestCreatedTime, counterId) {
+	var request = new XMLHttpRequest();
+	request.open('GET', url, true);
+	request.setRequestHeader('Authorization', 'Bearer ' + access_token);
+	request.onreadystatechange = function () {
+		if (this.readyState != 4) return;
+
+		if (this.status == 200) {
+			var data = JSON.parse(this.responseText);
+			var comments = data.values;
+
+			for (var i=0; i<comments.length; i++) {
+				if (legitReviewers.some(r => comments[i].user.nickname.includes(r))) {
+					var commentCreatedDate = new Date(comments[i].created_on);
+					var prCreatedDate = new Date(pullRequestCreatedTime);
+					var hourDifference = Math.round(Math.abs(commentCreatedDate - prCreatedDate) / 1000 / 3600);
+				  
+					if (!document.getElementById(counterId).dataset.hourDifferences)
+						document.getElementById(counterId).dataset.hourDifferences = hourDifference;
+					else
+						document.getElementById(counterId).dataset.hourDifferences += ',' + hourDifference;
+				}	
+			}
+			
+			if (data.next) {
+              requestComments(data.next, pullRequestCreatedTime, counterId);
+            }
+			else {
+				if (document.getElementById(counterId).dataset.hourDifferences) {
+					var hoursArray = document.getElementById(counterId).dataset.hourDifferences.split(',').map(function(x){return parseInt(x,10)})
+					  var hourMedian = Math.round(median(hoursArray));
+					  var avgDaysMerge = Math.round(hourMedian / 24);
+					  
+					  var newValue;
+					  
+					  if (hourMedian < 24)
+						newValue = 'less than 1 day (' + hourMedian + 'h)';
+					  else
+						newValue = '~' + avgDaysMerge + ' days (' + hourMedian + 'h)';
+					
+					  document.getElementById(counterId).innerHTML = newValue;
+						
+					  localStorage.setItem(counterId, newValue);
+				} 
+            }
+		}
+	};
+	request.send();
+  }
+
+  function countAverageTimeToFirstComment (repository, url, counterId) {
+    var request = new XMLHttpRequest();
+    request.open('GET', url, true);
+    request.setRequestHeader('Authorization', 'Bearer ' + access_token);
+    request.onreadystatechange = function () {
+        if (this.readyState != 4) return;
+
+        if (this.status == 200) {
+            var data = JSON.parse(this.responseText);
+            var pull_requests = data.values;
+			
+			for (var i=0; i<pull_requests.length; i++) {
+				var avgTimeToComment = document.getElementById(counterId).dataset.value || 0;
+				requestComments(getBaseApiUrl(repository) + '/' + pull_requests[i].id + '/comments', pull_requests[i].created_on, counterId, avgTimeToComment);
+			}
+
+        }
+    };
+    request.send();
+  }
+  
+	//last week
+	function countLastWeekAverageTimeToReply(repository, isLocal) {
+		var counterId = 'avg_time_reponse_week';
+		
+		if (isLocal) {
+			var storedValue = localStorage.getItem(counterId);
+			
+			if(storedValue) {
+				document.getElementById(counterId).innerHTML = storedValue;
+				return;
+			}		
+		}
+
+		var today = new Date();
+		var datetime = new Date(today.setDate(today.getDate() - 7));
+		var dateString = datetime.getFullYear() + '-' + (parseInt(datetime.getMonth()) + 1) + '-' + datetime.getDate();
+		var query = 'updated_on>"' + dateString + '"';
+		var url = getUrlWithQuery(repository, query);
+	
+		countAverageTimeToFirstComment (repository, url, counterId);
+	}
+	
+	function countLastMonthAverageTimeToReply(repository, isLocal) {
+		var counterId = 'avg_time_reponse_month';
+		
+		if (isLocal) {
+			var storedValue = localStorage.getItem(counterId);
+			
+			if(storedValue) {
+				document.getElementById(counterId).innerHTML = storedValue;
+				return;
+			}		
+		}
+
+		var today = new Date();
+		var datetime = new Date(today.setDate(today.getDate() - 30));
+		var dateString = datetime.getFullYear() + '-' + (parseInt(datetime.getMonth()) + 1) + '-' + datetime.getDate();
+		var query = 'updated_on>"' + dateString + '"';
+		var url = getUrlWithQuery(repository, query);
+	
+		countAverageTimeToFirstComment (repository, url, 'avg_time_reponse_month');
+	}
 
   function countLastWeekAverageTimeToMerge (repository, isLocal) {
     var counterId = 'avg_time_merge_week';
 	
 	if (isLocal) {
-		document.getElementById(counterId).innerHTML = localStorage.getItem(counterId);
-		return;
+		var storedValue = localStorage.getItem(counterId);
+		
+		if(storedValue) {
+			document.getElementById(counterId).innerHTML = storedValue;
+			return;
+		}		
 	}
 
 	var today = new Date();
@@ -754,8 +887,12 @@ body {
     var counterId = 'avg_time_merge_month';
 	
 	if (isLocal) {
-		document.getElementById(counterId).innerHTML = localStorage.getItem(counterId);
-		return;
+		var storedValue = localStorage.getItem(counterId);
+		
+		if(storedValue) {
+			document.getElementById(counterId).innerHTML = storedValue;
+			return;
+		}		
 	}
 
 	var today = new Date();
@@ -772,8 +909,12 @@ body {
 	var counterId = 'avg_number_pr_week';
 	
 	if (isLocal) {
-		document.getElementById(counterId).innerHTML = localStorage.getItem(counterId);
-		return;
+		var storedValue = localStorage.getItem(counterId);
+		
+		if(storedValue) {
+			document.getElementById(counterId).innerHTML = storedValue;
+			return;
+		}		
 	}
   
     var today = new Date();
@@ -843,6 +984,9 @@ body {
 	if (new Date(lastCheckDate) >= today) {
 		isLocal = true;
 	}
+	
+	countLastWeekAverageTimeToReply(current_repo, isLocal);
+	countLastMonthAverageTimeToReply(current_repo, isLocal);
   
     countOpenPullRequest(current_repo, isLocal);
     countLastWeekMergedPullRequests(current_repo, isLocal);
