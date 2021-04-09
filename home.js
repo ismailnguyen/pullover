@@ -139,6 +139,8 @@ function countAverageTimeToMerge(url, counterId) {
 
                 if (hourMedian < 24)
                     newValue = 'less than 1 day (' + hourMedian + 'h)';
+				else if (hourMedian == 24)
+					newValue = '1 day (' + hourMedian + 'h)';
                 else
                     newValue = '~' + avgDaysMerge + ' days (' + hourMedian + 'h)';
 
