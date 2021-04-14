@@ -178,9 +178,10 @@ function requestComments(url, pullRequestCreatedTime, counterId) {
         if (this.status == 200) {
             var data = JSON.parse(this.responseText);
             var comments = data.values;
+			var firstCommentReaded = false;
 
             for (var i = 0; i < comments.length; i++) {
-                if (legitReviewers.some(r => comments[i].user.nickname.includes(r))) {
+                if (!firstCommentReaded && legitReviewers.some(r => comments[i].user.nickname.includes(r))) {
                     var commentCreatedDate = new Date(comments[i].created_on);
                     var prCreatedDate = new Date(pullRequestCreatedTime);
                     var hourDifference = Math.round(Math.abs(commentCreatedDate - prCreatedDate) / 1000 / 3600);
@@ -189,6 +190,8 @@ function requestComments(url, pullRequestCreatedTime, counterId) {
                         document.getElementById(counterId).dataset.hourDifferences = hourDifference;
                     else
                         document.getElementById(counterId).dataset.hourDifferences += ',' + hourDifference;
+						
+					firstCommentReaded = true;
                 }
             }
 
@@ -234,7 +237,10 @@ function countAverageTimeToFirstComment(repository, url, counterId) {
                 var avgTimeToComment = document.getElementById(counterId).dataset.value || 0;
                 requestComments(getBaseApiUrl(repository) + '/' + pull_requests[i].id + '/comments', pull_requests[i].created_on, counterId, avgTimeToComment);
             }
-
+			
+			if (data.next) {
+                countAverageTimeToFirstComment(repository, data.next, counterId);
+            }
         }
     };
     request.send();
