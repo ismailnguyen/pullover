@@ -49,9 +49,7 @@ function countPullRequestSince(repository, status, datetime, counterId) {
     countPullRequests(url, counterId);
 }
 
-function countLastWeekMergedPullRequests(repository, isLocal) {
-    var counterId = 'pullrequest_status_merged_week';
-
+function countMergedPullRequestsSince(counterId, repository, isLocal, sinceDate) {
     if (isLocal) {
         var storedValue = localStorage.getItem(counterId);
 
@@ -61,33 +59,10 @@ function countLastWeekMergedPullRequests(repository, isLocal) {
         }
     }
 
-    var today = new Date();
-    var oneWeekAgo = new Date(today.setDate(today.getDate() - 7));
-
-    countPullRequestSince(repository, 'MERGED', oneWeekAgo, counterId)
+    countPullRequestSince(repository, 'MERGED', sinceDate, counterId)
 }
 
-function countLastMonthMergedPullRequests(repository, isLocal) {
-    var counterId = 'pullrequest_status_merged_month';
-
-    if (isLocal) {
-        var storedValue = localStorage.getItem(counterId);
-
-        if (storedValue) {
-            document.getElementById(counterId).innerHTML = storedValue;
-            return;
-        }
-    }
-
-    var today = new Date();
-    var oneMonthAgo = new Date(today.setDate(today.getDate() - 30));
-
-    countPullRequestSince(repository, 'MERGED', oneMonthAgo, 'pullrequest_status_merged_month')
-}
-
-function countOpenPullRequest(repository, isLocal) {
-    var counterId = 'pullrequest_status_open';
-
+function countOpenPullRequest(counterId, repository, isLocal) {
     if (isLocal) {
         var storedValue = localStorage.getItem(counterId);
 
@@ -246,10 +221,7 @@ function countAverageTimeToFirstComment(repository, url, counterId) {
     request.send();
 }
 
-//last week
-function countLastWeekAverageTimeToReply(repository, isLocal) {
-    var counterId = 'avg_time_reponse_week';
-
+function countAverageTimeToReplySince(counterId, repository, isLocal, sinceDate) {
     if (isLocal) {
         var storedValue = localStorage.getItem(counterId);
 
@@ -259,18 +231,14 @@ function countLastWeekAverageTimeToReply(repository, isLocal) {
         }
     }
 
-    var today = new Date();
-    var datetime = new Date(today.setDate(today.getDate() - 7));
-    var dateString = datetime.getFullYear() + '-' + (parseInt(datetime.getMonth()) + 1) + '-' + datetime.getDate();
+    var dateString = sinceDate.getFullYear() + '-' + (parseInt(sinceDate.getMonth()) + 1) + '-' + sinceDate.getDate();
     var query = 'updated_on>"' + dateString + '"';
     var url = getUrlWithQuery(repository, query);
 
     countAverageTimeToFirstComment(repository, url, counterId);
 }
 
-function countLastMonthAverageTimeToReply(repository, isLocal) {
-    var counterId = 'avg_time_reponse_month';
-
+function countAverageTimeToMergeSince(counterId, repository, isLocal, sinceDate) {
     if (isLocal) {
         var storedValue = localStorage.getItem(counterId);
 
@@ -280,40 +248,15 @@ function countLastMonthAverageTimeToReply(repository, isLocal) {
         }
     }
 
-    var today = new Date();
-    var datetime = new Date(today.setDate(today.getDate() - 30));
-    var dateString = datetime.getFullYear() + '-' + (parseInt(datetime.getMonth()) + 1) + '-' + datetime.getDate();
-    var query = 'updated_on>"' + dateString + '"';
-    var url = getUrlWithQuery(repository, query);
-
-    countAverageTimeToFirstComment(repository, url, 'avg_time_reponse_month');
-}
-
-function countLastWeekAverageTimeToMerge(repository, isLocal) {
-    var counterId = 'avg_time_merge_week';
-
-    if (isLocal) {
-        var storedValue = localStorage.getItem(counterId);
-
-        if (storedValue) {
-            document.getElementById(counterId).innerHTML = storedValue;
-            return;
-        }
-    }
-
-    var today = new Date();
-    var datetime = new Date(today.setDate(today.getDate() - 7));
     var status = 'MERGED';
-    var dateString = datetime.getFullYear() + '-' + (parseInt(datetime.getMonth()) + 1) + '-' + datetime.getDate();
+    var dateString = sinceDate.getFullYear() + '-' + (parseInt(sinceDate.getMonth()) + 1) + '-' + sinceDate.getDate();
     var query = 'updated_on>"' + dateString + '" and state="' + status + '"';
     var url = getUrlWithQuery(repository, query);
 
     countAverageTimeToMerge(url, counterId, 0);
 }
 
-function countLastMonthAverageTimeToMerge(repository, isLocal) {
-    var counterId = 'avg_time_merge_month';
-
+function countAverageNumberSince(counterId, repository, isLocal, sinceDate) {
     if (isLocal) {
         var storedValue = localStorage.getItem(counterId);
 
@@ -323,31 +266,7 @@ function countLastMonthAverageTimeToMerge(repository, isLocal) {
         }
     }
 
-    var today = new Date();
-    var datetime = new Date(today.setDate(today.getDate() - 30));
-    var status = 'MERGED';
-    var dateString = datetime.getFullYear() + '-' + (parseInt(datetime.getMonth()) + 1) + '-' + datetime.getDate();
-    var query = 'updated_on>"' + dateString + '" and state="' + status + '"';
-    var url = getUrlWithQuery(repository, query);
-
-    countAverageTimeToMerge(url, counterId, 0);
-}
-
-function countAverageNumber(repository, isLocal) {
-    var counterId = 'avg_number_pr_week';
-
-    if (isLocal) {
-        var storedValue = localStorage.getItem(counterId);
-
-        if (storedValue) {
-            document.getElementById(counterId).innerHTML = storedValue;
-            return;
-        }
-    }
-
-    var today = new Date();
-    var datetime = new Date(today.setDate(today.getDate() - 30));
-    var dateString = datetime.getFullYear() + '-' + (parseInt(datetime.getMonth()) + 1) + '-' + datetime.getDate();
+    var dateString = sinceDate.getFullYear() + '-' + (parseInt(sinceDate.getMonth()) + 1) + '-' + sinceDate.getDate();
     var query = 'updated_on>"' + dateString + '"';
     var url = getUrlWithQuery(repository, query);
 
@@ -402,27 +321,45 @@ function createRepoChangeButtons() {
     }
 }
 
+function getTodayDate() {
+	return new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate());
+}
+
+function getLastWeekDate() {
+	var lastWeek = new Date(new Date().getTime() - 60 * 60 * 24 * 7 * 1000);
+	var diffToMonday = lastWeek.getDate() - lastWeek.getDay() + (lastWeek.getDay() === 0 ? -6 : 1);
+	return new Date(lastWeek.setDate(diffToMonday));
+}
+
+function getLastMonthDate() {
+	var today = new Date();
+	return new Date(today.getFullYear(), today.getMonth() - 1, 1);
+}
+
 function init() {
     var today = new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate());
+	var lastWeek = getLastWeekDate();
+	var lastMonth = getLastMonthDate();
 
-    var lastCheckDate = localStorage.getItem('lastCheckDate');
-
+	var lastCheckDate = localStorage.getItem('lastCheckDate');
     var isLocal = false;
     // If datas were already checked today, restore them from storage 
     if (new Date(lastCheckDate) >= today) {
         isLocal = true;
     }
 
-    countLastWeekAverageTimeToReply(current_repo, isLocal);
-    countLastMonthAverageTimeToReply(current_repo, isLocal);
+    countAverageTimeToReplySince('avg_time_reponse_week', current_repo, isLocal, lastWeek);
+    countAverageTimeToReplySince('avg_time_reponse_month', current_repo, isLocal, lastMonth);
 
-    countOpenPullRequest(current_repo, isLocal);
-    countLastWeekMergedPullRequests(current_repo, isLocal);
-    countLastMonthMergedPullRequests(current_repo, isLocal);
-
-    countLastWeekAverageTimeToMerge(current_repo, isLocal);
-    countLastMonthAverageTimeToMerge(current_repo, isLocal);
-    countAverageNumber(current_repo, isLocal);
+    countOpenPullRequest('pullrequest_status_open', current_repo, isLocal);
+    countMergedPullRequestsSince('pullrequest_status_merged_week', current_repo, isLocal, lastWeek);
+    countMergedPullRequestsSince('pullrequest_status_merged_month', current_repo, isLocal, lastMonth);
+    
+    countAverageTimeToMergeSince('avg_time_merge_week', current_repo, isLocal, lastWeek);
+    countAverageTimeToMergeSince('avg_time_merge_month', current_repo, isLocal, lastMonth);
+	
+	//TODO REMOVE false
+    countAverageNumberSince('avg_number_pr_week', current_repo, false, lastWeek);
 
     createRepoChangeButtons();
     bindRepoChangeButtons();
