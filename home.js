@@ -9,6 +9,21 @@ const legitReviewers = [
     "MARTINA"
 ];
 
+function median(values) {
+    if (values.length === 0) return 0;
+
+    values.sort(function(a, b) {
+        return a - b;
+    });
+
+    var half = Math.floor(values.length / 2);
+
+    if (values.length % 2)
+        return values[half];
+
+    return (values[half - 1] + values[half]) / 2.0;
+}
+
 function getBaseApiUrl(repository) {
     return 'https://bitbucket.org/api/2.0/repositories/' + accountid + '/' + repository + '/pullrequests';
 }
@@ -79,71 +94,7 @@ function countOpenPullRequest(counterId, repository, isLocal) {
     countPullRequests(url, counterId);
 }
 
-function countAverageTimeToMerge(url, counterId) {
-    var request = new XMLHttpRequest();
-    request.open('GET', url, true);
-    request.setRequestHeader('Authorization', 'Bearer ' + access_token);
-    request.onreadystatechange = function() {
-        if (this.readyState != 4) return;
-
-        if (this.status == 200) {
-            var data = JSON.parse(this.responseText);
-            var pull_requests = data.values;
-
-            pull_requests.forEach(pr => {
-                var createdDate = new Date(pr.created_on);
-                var mergedDate = new Date(pr.updated_on);
-                var hourDifference = Math.round(Math.abs(mergedDate - createdDate) / 1000 / 3600);
-
-                if (!document.getElementById(counterId).dataset.hourDifferences)
-                    document.getElementById(counterId).dataset.hourDifferences = hourDifference;
-                else
-                    document.getElementById(counterId).dataset.hourDifferences += ',' + hourDifference;
-            })
-
-            if (data.next) {
-                countAverageTimeToMerge(data.next, counterId);
-            } else {
-                var hoursArray = document.getElementById(counterId).dataset.hourDifferences.split(',').map(function(x) {
-                    return parseInt(x, 10)
-                })
-                var hourMedian = Math.round(median(hoursArray));
-                var avgDaysMerge = Math.round(hourMedian / 24);
-
-                var newValue;
-
-                if (hourMedian < 24)
-                    newValue = 'less than 1 day (' + hourMedian + 'h)';
-				else if (hourMedian == 24)
-					newValue = '1 day (' + hourMedian + 'h)';
-                else
-                    newValue = '~' + avgDaysMerge + ' days (' + hourMedian + 'h)';
-
-                document.getElementById(counterId).innerHTML = newValue;
-
-                localStorage.setItem(counterId, newValue);
-            }
-        }
-    };
-    request.send();
-}
-
-function median(values) {
-    if (values.length === 0) return 0;
-
-    values.sort(function(a, b) {
-        return a - b;
-    });
-
-    var half = Math.floor(values.length / 2);
-
-    if (values.length % 2)
-        return values[half];
-
-    return (values[half - 1] + values[half]) / 2.0;
-}
-
-function requestComments(url, pullRequestCreatedTime, counterId) {
+function requestComments(url, pullRequest, counterId) {
     var request = new XMLHttpRequest();
     request.open('GET', url, true);
     request.setRequestHeader('Authorization', 'Bearer ' + access_token);
@@ -154,26 +105,43 @@ function requestComments(url, pullRequestCreatedTime, counterId) {
             var data = JSON.parse(this.responseText);
             var comments = data.values;
 			var firstCommentReaded = false;
+			var prAlreadyMerged = false;
 
-            for (var i = 0; i < comments.length; i++) {
-                if (!firstCommentReaded && legitReviewers.some(r => comments[i].user.nickname.includes(r))) {
-                    var commentCreatedDate = new Date(comments[i].created_on);
-                    var prCreatedDate = new Date(pullRequestCreatedTime);
-                    var hourDifference = Math.round(Math.abs(commentCreatedDate - prCreatedDate) / 1000 / 3600);
+			// If the PR was merged before any comment, so take the merge time as time to response
+			if (pullRequest.updated_on &&
+				((!comments.length)
+					|| new Date(pullRequest.updated_on) < new Date(comments[0].length))) {		
+				var prCreatedDate = new Date(pullRequest.created_on);
+				var prMergedDate = new Date(pullRequest.updated_on);
+				var hourDifference = Math.round(Math.abs(prMergedDate - prCreatedDate) / 1000 / 3600);
 
-                    if (!document.getElementById(counterId).dataset.hourDifferences)
-                        document.getElementById(counterId).dataset.hourDifferences = hourDifference;
-                    else
-                        document.getElementById(counterId).dataset.hourDifferences += ',' + hourDifference;
-						
-					firstCommentReaded = true;
-                }
-            }
+				if (!document.getElementById(counterId).dataset.hourDifferences)
+					document.getElementById(counterId).dataset.hourDifferences = hourDifference;
+				else
+					document.getElementById(counterId).dataset.hourDifferences += ',' + hourDifference;
+					
+				prAlreadyMerged = true;
+			} else {
+				for (var i = 0; i < comments.length; i++) {
+					if (!firstCommentReaded && legitReviewers.some(r => comments[i].user.nickname.includes(r))) {
+						var commentCreatedDate = new Date(comments[i].created_on);
+						var prCreatedDate = new Date(pullRequest.created_on);
+						var hourDifference = Math.round(Math.abs(commentCreatedDate - prCreatedDate) / 1000 / 3600);
 
-            if (data.next) {
-                requestComments(data.next, pullRequestCreatedTime, counterId);
+						if (!document.getElementById(counterId).dataset.hourDifferences)
+							document.getElementById(counterId).dataset.hourDifferences = hourDifference;
+						else
+							document.getElementById(counterId).dataset.hourDifferences += ',' + hourDifference;
+							
+						firstCommentReaded = true;
+					}
+				}
+			}
+
+            if (data.next && !prAlreadyMerged) {
+                requestComments(data.next, pullRequest, counterId);
             } else {
-                if (document.getElementById(counterId).dataset.hourDifferences) {
+				if (document.getElementById(counterId).dataset.hourDifferences) {
                     var hoursArray = document.getElementById(counterId).dataset.hourDifferences.split(',').map(function(x) {
                         return parseInt(x, 10)
                     })
@@ -210,7 +178,13 @@ function countAverageTimeToFirstComment(repository, url, counterId) {
 
             for (var i = 0; i < pull_requests.length; i++) {
                 var avgTimeToComment = document.getElementById(counterId).dataset.value || 0;
-                requestComments(getBaseApiUrl(repository) + '/' + pull_requests[i].id + '/comments', pull_requests[i].created_on, counterId, avgTimeToComment);
+
+                requestComments(
+					getBaseApiUrl(repository) + '/' + pull_requests[i].id + '/comments',
+					pull_requests[i],
+					counterId,
+					avgTimeToComment
+				);
             }
 			
 			if (data.next) {
@@ -221,7 +195,7 @@ function countAverageTimeToFirstComment(repository, url, counterId) {
     request.send();
 }
 
-function countAverageTimeToReplySince(counterId, repository, isLocal, sinceDate) {
+function countAverageTimeToReplySince(counterId, mergeCounterId, repository, isLocal, sinceDate) {
     if (isLocal) {
         var storedValue = localStorage.getItem(counterId);
 
@@ -236,24 +210,6 @@ function countAverageTimeToReplySince(counterId, repository, isLocal, sinceDate)
     var url = getUrlWithQuery(repository, query);
 
     countAverageTimeToFirstComment(repository, url, counterId);
-}
-
-function countAverageTimeToMergeSince(counterId, repository, isLocal, sinceDate) {
-    if (isLocal) {
-        var storedValue = localStorage.getItem(counterId);
-
-        if (storedValue) {
-            document.getElementById(counterId).innerHTML = storedValue;
-            return;
-        }
-    }
-
-    var status = 'MERGED';
-    var dateString = sinceDate.getFullYear() + '-' + (parseInt(sinceDate.getMonth()) + 1) + '-' + sinceDate.getDate();
-    var query = 'updated_on>"' + dateString + '" and state="' + status + '"';
-    var url = getUrlWithQuery(repository, query);
-
-    countAverageTimeToMerge(url, counterId, 0);
 }
 
 function countAverageNumberSince(counterId, repository, isLocal, sinceDate) {
@@ -345,21 +301,17 @@ function init() {
     var isLocal = false;
     // If datas were already checked today, restore them from storage 
     if (new Date(lastCheckDate) >= today) {
-        isLocal = true;
+        //isLocal = true;
     }
-
-    countAverageTimeToReplySince('avg_time_reponse_week', current_repo, isLocal, lastWeek);
-    countAverageTimeToReplySince('avg_time_reponse_month', current_repo, isLocal, lastMonth);
 
     countOpenPullRequest('pullrequest_status_open', current_repo, isLocal);
     countMergedPullRequestsSince('pullrequest_status_merged_week', current_repo, isLocal, lastWeek);
     countMergedPullRequestsSince('pullrequest_status_merged_month', current_repo, isLocal, lastMonth);
-    
-    countAverageTimeToMergeSince('avg_time_merge_week', current_repo, isLocal, lastWeek);
-    countAverageTimeToMergeSince('avg_time_merge_month', current_repo, isLocal, lastMonth);
-	
-	//TODO REMOVE false
-    countAverageNumberSince('avg_number_pr_week', current_repo, false, lastWeek);
+
+countAverageTimeToReplySince('avg_time_reponse_week', 'pullrequest_status_merged_week', current_repo, false, lastWeek);
+    countAverageTimeToReplySince('avg_time_reponse_month', 'pullrequest_status_merged_month', current_repo, false, lastMonth);
+
+    countAverageNumberSince('avg_number_pr_week', current_repo, isLocal, lastWeek);
 
     createRepoChangeButtons();
     bindRepoChangeButtons();
