@@ -134,7 +134,6 @@ function autologin() {
                 window.location.href = 'home.html';
             }, 2000)
         } else if (this.status !== 200) {
-            localStorage.clear();
             setTimeout(function() {
                 window.location.href = 'login.html';
             }, 2000)
