@@ -120,8 +120,8 @@ function autologin() {
     var secret = localStorage.getItem('bitbucket_secret');
 
     var request = new XMLHttpRequest();
-    request.open('POST', 'https://bitbucket.org/site/oauth2/access_token', true);
-    request.setRequestHeader("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8");
+    request.open('POST', 'https://cors-proxy-eu.herokuapp.com/https://bitbucket.org/site/oauth2/access_token', true);
+	request.setRequestHeader("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8");
     request.setRequestHeader("Authorization", "Basic " + btoa(clientId + ':' + secret));
     request.send('grant_type=client_credentials');
 
