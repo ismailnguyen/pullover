@@ -3,11 +3,6 @@ const repositories = localStorage.getItem('bitbucket_repositories').split(',');
 const current_repo = urlParams.get('repo') || localStorage.getItem('current_repo') || repositories[0];
 const accountid = localStorage.getItem('bitbucket_accountid');
 const access_token = localStorage.getItem('bitbucket_access_token');
-const legitReviewers = [
-    "NGUYEN",
-    "PASQUET",
-    "MARTINA"
-];
 
 function median(values) {
     if (values.length === 0) return 0;
@@ -24,12 +19,31 @@ function median(values) {
     return (values[half - 1] + values[half]) / 2.0;
 }
 
-function getBaseApiUrl(repository) {
-    return 'https://bitbucket.org/api/2.0/repositories/' + accountid + '/' + repository + '/pullrequests';
+function getBaseApiUrl(repository, scope) {
+    return 'https://bitbucket.org/api/2.0/repositories/' + accountid + '/' + repository + '/' + scope;
 }
 
-function getUrlWithQuery(repository, query) {
-    return getBaseApiUrl(repository) + '?q=' + query;
+function getPullRequestUrlWithQuery(repository, query) {
+    return getBaseApiUrl(repository, 'pullrequests') + '?q=' + query;
+}
+
+function getDefaultReviewers(repository) {
+    return new Promise(async function (resolve, reject) {
+        var defautReviewers = [];
+
+        var request = new XMLHttpRequest();
+        request.open('GET', getBaseApiUrl(repository, 'default-reviewers'), true);
+        request.setRequestHeader('Authorization', 'Bearer ' + access_token);
+        request.onreadystatechange = function() {
+            if (this.readyState != 4) return;
+
+            if (this.status == 200) {
+                var data = JSON.parse(this.responseText);
+                resolve(data.values);
+            }
+        };
+        request.send();
+    })
 }
 
 function countPullRequests(url, counterId) {
@@ -59,7 +73,7 @@ function countPullRequests(url, counterId) {
 function countPullRequestSince(repository, status, datetime, counterId) {
     var dateString = datetime.getFullYear() + '-' + (parseInt(datetime.getMonth()) + 1) + '-' + datetime.getDate();
     var query = 'updated_on>"' + dateString + '" and state="' + status + '"';
-    var url = getUrlWithQuery(repository, query);
+    var url = getPullRequestUrlWithQuery(repository, query);
 
     countPullRequests(url, counterId);
 }
@@ -89,12 +103,12 @@ function countOpenPullRequest(counterId, repository, isLocal) {
 
     var open_status = 'OPEN';
     var query = 'state="' + open_status + '"';
-    var url = getUrlWithQuery(repository, query);
+    var url = getPullRequestUrlWithQuery(repository, query);
 
     countPullRequests(url, counterId);
 }
 
-function requestComments(url, pullRequest, counterId) {
+function requestComments(url, pullRequest, counterId, defaultReviewers) {
     var request = new XMLHttpRequest();
     request.open('GET', url, true);
     request.setRequestHeader('Authorization', 'Bearer ' + access_token);
@@ -123,7 +137,10 @@ function requestComments(url, pullRequest, counterId) {
 				prAlreadyMerged = true;
 			} else {
 				for (var i = 0; i < comments.length; i++) {
-					if (!firstCommentReaded && legitReviewers.some(r => comments[i].user.nickname.includes(r))) {
+					if (!firstCommentReaded
+                            && defaultReviewers
+                            && defaultReviewers.length
+                            && defaultReviewers.some(reviewer => comments[i].user.account_id == reviewer.account_id)) {
 						var commentCreatedDate = new Date(comments[i].created_on);
 						var prCreatedDate = new Date(pullRequest.created_on);
 						var hourDifference = Math.round(Math.abs(commentCreatedDate - prCreatedDate) / 1000 / 3600);
@@ -139,7 +156,7 @@ function requestComments(url, pullRequest, counterId) {
 			}
 
             if (data.next && !prAlreadyMerged) {
-                requestComments(data.next, pullRequest, counterId);
+                requestComments(data.next, pullRequest, counterId, defaultReviewers);
             } else {
 				if (document.getElementById(counterId).dataset.hourDifferences) {
                     var hoursArray = document.getElementById(counterId).dataset.hourDifferences.split(',').map(function(x) {
@@ -155,7 +172,7 @@ function requestComments(url, pullRequest, counterId) {
                     else
                         newValue = '~' + avgDaysMerge + ' days (' + hourMedian + 'h)';
 
-                    document.getElementById(counterId).innerHTML = newValue;
+                        document.getElementById(counterId).innerHTML = newValue;
 
                     localStorage.setItem(counterId, newValue);
                 }
@@ -165,7 +182,7 @@ function requestComments(url, pullRequest, counterId) {
     request.send();
 }
 
-function countAverageTimeToFirstComment(repository, url, counterId) {
+function countAverageTimeToFirstComment(repository, url, counterId, defaultReviewers) {
     var request = new XMLHttpRequest();
     request.open('GET', url, true);
     request.setRequestHeader('Authorization', 'Bearer ' + access_token);
@@ -177,25 +194,23 @@ function countAverageTimeToFirstComment(repository, url, counterId) {
             var pull_requests = data.values;
 
             for (var i = 0; i < pull_requests.length; i++) {
-                var avgTimeToComment = document.getElementById(counterId).dataset.value || 0;
-
                 requestComments(
-					getBaseApiUrl(repository) + '/' + pull_requests[i].id + '/comments',
+					getBaseApiUrl(repository, 'pullrequests') + '/' + pull_requests[i].id + '/comments',
 					pull_requests[i],
 					counterId,
-					avgTimeToComment
+                    defaultReviewers
 				);
             }
 			
 			if (data.next) {
-                countAverageTimeToFirstComment(repository, data.next, counterId);
+                countAverageTimeToFirstComment(repository, data.next, counterId, defaultReviewers);
             }
         }
     };
     request.send();
 }
 
-function countAverageTimeToReplySince(counterId, mergeCounterId, repository, isLocal, sinceDate) {
+function countAverageTimeToReplySince(counterId, repository, isLocal, sinceDate, defaultReviewers) {
     if (isLocal) {
         var storedValue = localStorage.getItem(counterId);
 
@@ -207,9 +222,9 @@ function countAverageTimeToReplySince(counterId, mergeCounterId, repository, isL
 
     var dateString = sinceDate.getFullYear() + '-' + (parseInt(sinceDate.getMonth()) + 1) + '-' + sinceDate.getDate();
     var query = 'updated_on>"' + dateString + '"';
-    var url = getUrlWithQuery(repository, query);
+    var url = getPullRequestUrlWithQuery(repository, query);
 
-    countAverageTimeToFirstComment(repository, url, counterId);
+    countAverageTimeToFirstComment(repository, url, counterId, defaultReviewers);
 }
 
 function countAverageNumberSince(counterId, repository, isLocal, sinceDate) {
@@ -224,7 +239,7 @@ function countAverageNumberSince(counterId, repository, isLocal, sinceDate) {
 
     var dateString = sinceDate.getFullYear() + '-' + (parseInt(sinceDate.getMonth()) + 1) + '-' + sinceDate.getDate();
     var query = 'updated_on>"' + dateString + '"';
-    var url = getUrlWithQuery(repository, query);
+    var url = getPullRequestUrlWithQuery(repository, query);
 
     requestAvgNumber(url, counterId, 0);
 }
@@ -259,6 +274,7 @@ function bindRepoChangeButtons() {
     var repo_change_btns = document.querySelectorAll('.repo-change');
     for (var i = 0; i < repo_change_btns.length; i++) {
         repo_change_btns[i].addEventListener('click', function(event) {
+            if(!event.target.dataset.repo) return;
             localStorage.setItem('current_repo', event.target.dataset.repo);
             window.location = './home.html?repo=' + event.target.dataset.repo;
         });
@@ -267,6 +283,8 @@ function bindRepoChangeButtons() {
 
 function createRepoChangeButtons() {
     for (var i = 0; i < repositories.length; i++) {
+        if (!repositories[i]) continue;
+
         var htmlValue = '<button class="cybr-btn repo-change" data-repo="' + repositories[i] + '">' +
             repositories[i] + '<span aria-hidden>_</span>' +
             '<span aria-hidden class="cybr-btn__glitch">' + repositories[i] + '</span>' +
@@ -301,15 +319,18 @@ function init() {
     var isLocal = false;
     // If datas were already checked today, restore them from storage 
     if (new Date(lastCheckDate) >= today) {
-        //isLocal = true;
+        isLocal = true;
     }
 
     countOpenPullRequest('pullrequest_status_open', current_repo, isLocal);
     countMergedPullRequestsSince('pullrequest_status_merged_week', current_repo, isLocal, lastWeek);
     countMergedPullRequestsSince('pullrequest_status_merged_month', current_repo, isLocal, lastMonth);
 
-countAverageTimeToReplySince('avg_time_reponse_week', 'pullrequest_status_merged_week', current_repo, false, lastWeek);
-    countAverageTimeToReplySince('avg_time_reponse_month', 'pullrequest_status_merged_month', current_repo, false, lastMonth);
+    getDefaultReviewers(current_repo, isLocal)
+    .then(defaultReviewers => {
+        countAverageTimeToReplySince('avg_time_reponse_week', current_repo, isLocal, lastWeek, defaultReviewers);
+        countAverageTimeToReplySince('avg_time_reponse_month', current_repo, isLocal, lastMonth, defaultReviewers);
+    })
 
     countAverageNumberSince('avg_number_pr_week', current_repo, isLocal, lastWeek);
 
