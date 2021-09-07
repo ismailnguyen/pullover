@@ -12,7 +12,6 @@ class CyberpunkShape {
 
         this.calcPosX();
         this.calcPosY();
-
     }
 
     calcPosX() {
@@ -34,8 +33,6 @@ class CyberpunkShape {
     }
 
     animate() {
-
-
         if (this.random(0, 100) < 1) {
             this.calcPosX();
             this.calcPosY();
@@ -114,10 +111,17 @@ window.addEventListener('resize', () => {
 });
 
 function autologin() {
-    var accountId = localStorage.getItem('bitbucket_accountid');
-    var repositories = localStorage.getItem('bitbucket_repositories');
     var clientId = localStorage.getItem('bitbucket_clientid');
     var secret = localStorage.getItem('bitbucket_secret');
+
+    // If credentials are not yet stored, directly prompt the login form
+    if (!clientId || !secret) {
+        setTimeout(function() {
+           window.location.href = 'login.html';
+        }, 2000)
+
+        return;
+    }
 
     var request = new XMLHttpRequest();
     request.open('POST', 'https://cors-proxy-eu.herokuapp.com/https://bitbucket.org/site/oauth2/access_token', true);
@@ -134,6 +138,7 @@ function autologin() {
                 window.location.href = 'home.html';
             }, 2000)
         } else if (this.status !== 200) {
+            alert('Error, please try again or check your credentials.');
             setTimeout(function() {
                 window.location.href = 'login.html';
             }, 2000)
