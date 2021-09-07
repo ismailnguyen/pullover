@@ -12,7 +12,6 @@ body {
   font-family: Tomorrow, arial, sans-serif;
   margin: 0;
 }
-
 .container {
   display: grid;
 }
@@ -30,7 +29,6 @@ body {
 }
 .more--cyberpunk-bg {
   background-color: #01012b;
-  /* background-image: url(https://www.dropbox.com/s/54yom6e97clqoxh/2019-02-05-image-12.jpg?raw=1); */
   background-position: center center;
   background-attachment: initial;
   background-size: cover;
@@ -250,22 +248,90 @@ body {
   height: 100vh;
   mix-blend-mode: screen;
   opacity: 0.65;
-  background-size: 100 100;
   animation: noise 240ms infinite;
-  background-image: url(http://api.thumbr.it/whitenoise-300x300.png?background=0a2406ff&noise=142238&density=85&opacity=100);
 }
 
 @keyframes noise {
   0% {
-    background-image: url(http://api.thumbr.it/whitenoise-200x200.png?background=0a2406ff&noise=142238&density=85&opacity=100);
+    clip: rect(8rem, 99.99rem, 12rem, 0);
   }
-  33% {
-    background-image: url(http://api.thumbr.it/whitenoise-210x200.png?background=0a2406ff&noise=182235&density=85&opacity=100);
+  4% {
+    clip: rect(3rem, 99.99rem, 3rem, 0);
   }
-  66% {
-    background-image: url(http://api.thumbr.it/whitenoise-200x190.png?background=0a2406ff&noise=142248&density=85&opacity=100);
+  8% {
+    clip: rect(9rem, 99.99rem, 4rem, 0);
+  }
+  12% {
+    clip: rect(5rem, 99.99rem, 7rem, 0);
+  }
+  16% {
+    clip: rect(4rem, 99.99rem, 5rem, 0);
+  }
+  20% {
+    clip: rect(10rem, 99.99rem, 6rem, 0);
+  }
+  24% {
+    clip: rect(3rem, 99.99rem, 10rem, 0);
+  }
+  28% {
+    clip: rect(7rem, 99.99rem, 6rem, 0);
+  }
+  32% {
+    clip: rect(3rem, 99.99rem, 1rem, 0);
+  }
+  36% {
+    clip: rect(8rem, 99.99rem, 12rem, 0);
+  }
+  40% {
+    clip: rect(3rem, 99.99rem, 1rem, 0);
+  }
+  44% {
+    clip: rect(7rem, 99.99rem, 11rem, 0);
+  }
+  48% {
+    clip: rect(9rem, 99.99rem, 12rem, 0);
+  }
+  52% {
+    clip: rect(2rem, 99.99rem, 6rem, 0);
+  }
+  56% {
+    clip: rect(5rem, 99.99rem, 11rem, 0);
+  }
+  60% {
+    clip: rect(11rem, 99.99rem, 6rem, 0);
+  }
+  64% {
+    clip: rect(9rem, 99.99rem, 8rem, 0);
+  }
+  68% {
+    clip: rect(1rem, 99.99rem, 8rem, 0);
+  }
+  72% {
+    clip: rect(12rem, 99.99rem, 10rem, 0);
+  }
+  76% {
+    clip: rect(9rem, 99.99rem, 2rem, 0);
+  }
+  80% {
+    clip: rect(6rem, 99.99rem, 3rem, 0);
+  }
+  84% {
+    clip: rect(1rem, 99.99rem, 8rem, 0);
+  }
+  88% {
+    clip: rect(5rem, 99.99rem, 3rem, 0);
+  }
+  92% {
+    clip: rect(7rem, 99.99rem, 3rem, 0);
+  }
+  96% {
+    clip: rect(3rem, 99.99rem, 3rem, 0);
+  }
+  100% {
+    clip: rect(9rem, 99.99rem, 6rem, 0);
   }
 }
+
 .wrapper:after {
   content: " ";
   position: absolute;
