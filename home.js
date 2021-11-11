@@ -46,7 +46,7 @@ function getDefaultReviewers(repository) {
     })
 }
 
-function countPullRequests(url, counterId) {
+function countPullRequests(repository, url, counterId) {
     var request = new XMLHttpRequest();
     request.open('GET', url, true);
     request.setRequestHeader('Authorization', 'Bearer ' + access_token);
@@ -59,11 +59,11 @@ function countPullRequests(url, counterId) {
             pull_requests.forEach(pr => {
                 var newValue = parseInt(document.getElementById(counterId).innerHTML || 0) + 1;
                 document.getElementById(counterId).innerHTML = newValue;
-                localStorage.setItem(counterId, newValue);
+                localStorage.setItem(counterId + '_' + repository, newValue);
             })
 
             if (data.next) {
-                countPullRequests(data.next, counterId);
+                countPullRequests(repository, data.next, counterId);
             }
         }
     };
@@ -75,12 +75,12 @@ function countPullRequestSince(repository, status, datetime, counterId) {
     var query = 'updated_on>"' + dateString + '" and state="' + status + '"';
     var url = getPullRequestUrlWithQuery(repository, query);
 
-    countPullRequests(url, counterId);
+    countPullRequests(repository, url, counterId);
 }
 
 function countMergedPullRequestsSince(counterId, repository, isLocal, sinceDate) {
     if (isLocal) {
-        var storedValue = localStorage.getItem(counterId);
+        var storedValue = localStorage.getItem(counterId + '_' + repository);
 
         if (storedValue) {
             document.getElementById(counterId).innerHTML = storedValue;
@@ -93,7 +93,7 @@ function countMergedPullRequestsSince(counterId, repository, isLocal, sinceDate)
 
 function countOpenPullRequest(counterId, repository, isLocal) {
     if (isLocal) {
-        var storedValue = localStorage.getItem(counterId);
+        var storedValue = localStorage.getItem(counterId + '_' + repository);
 
         if (storedValue) {
             document.getElementById(counterId).innerHTML = storedValue;
@@ -105,10 +105,10 @@ function countOpenPullRequest(counterId, repository, isLocal) {
     var query = 'state="' + open_status + '"';
     var url = getPullRequestUrlWithQuery(repository, query);
 
-    countPullRequests(url, counterId);
+    countPullRequests(repository, url, counterId);
 }
 
-function requestComments(url, pullRequest, counterId, defaultReviewers) {
+function requestComments(repository, url, pullRequest, counterId, defaultReviewers) {
     var request = new XMLHttpRequest();
     request.open('GET', url, true);
     request.setRequestHeader('Authorization', 'Bearer ' + access_token);
@@ -156,7 +156,7 @@ function requestComments(url, pullRequest, counterId, defaultReviewers) {
 			}
 
             if (data.next && !prAlreadyMerged) {
-                requestComments(data.next, pullRequest, counterId, defaultReviewers);
+                requestComments(repository, data.next, pullRequest, counterId, defaultReviewers);
             } else {
 				if (document.getElementById(counterId).dataset.hourDifferences) {
                     var hoursArray = document.getElementById(counterId).dataset.hourDifferences.split(',').map(function(x) {
@@ -174,7 +174,7 @@ function requestComments(url, pullRequest, counterId, defaultReviewers) {
 
                         document.getElementById(counterId).innerHTML = newValue;
 
-                    localStorage.setItem(counterId, newValue);
+                    localStorage.setItem(counterId + '_' + repository, newValue);
                 }
             }
         }
@@ -195,6 +195,7 @@ function countAverageTimeToFirstComment(repository, url, counterId, defaultRevie
 
             for (var i = 0; i < pull_requests.length; i++) {
                 requestComments(
+                    repository,
 					getBaseApiUrl(repository, 'pullrequests') + '/' + pull_requests[i].id + '/comments',
 					pull_requests[i],
 					counterId,
@@ -212,7 +213,7 @@ function countAverageTimeToFirstComment(repository, url, counterId, defaultRevie
 
 function countAverageTimeToReplySince(counterId, repository, isLocal, sinceDate, defaultReviewers) {
     if (isLocal) {
-        var storedValue = localStorage.getItem(counterId);
+        var storedValue = localStorage.getItem(counterId + '_' + repository);
 
         if (storedValue) {
             document.getElementById(counterId).innerHTML = storedValue;
@@ -229,7 +230,7 @@ function countAverageTimeToReplySince(counterId, repository, isLocal, sinceDate,
 
 function countAverageNumberSince(counterId, repository, isLocal, sinceDate) {
     if (isLocal) {
-        var storedValue = localStorage.getItem(counterId);
+        var storedValue = localStorage.getItem(counterId + '_' + repository);
 
         if (storedValue) {
             document.getElementById(counterId).innerHTML = storedValue;
@@ -241,10 +242,10 @@ function countAverageNumberSince(counterId, repository, isLocal, sinceDate) {
     var query = 'updated_on>"' + dateString + '"';
     var url = getPullRequestUrlWithQuery(repository, query);
 
-    requestAvgNumber(url, counterId, 0);
+    requestAvgNumber(repository, url, counterId, 0);
 }
 
-function requestAvgNumber(url, counterId, avgNumber) {
+function requestAvgNumber(repository, url, counterId, avgNumber) {
     var request = new XMLHttpRequest();
     request.open('GET', url, true);
     request.setRequestHeader('Authorization', 'Bearer ' + access_token);
@@ -259,11 +260,11 @@ function requestAvgNumber(url, counterId, avgNumber) {
 
                 var newValue = Math.round(parseInt(avgNumber) / 4);
                 document.getElementById(counterId).innerHTML = newValue;
-                localStorage.setItem(counterId, newValue);
+                localStorage.setItem(counterId + '_' + repository, newValue);
             })
 
             if (data.next) {
-                requestAvgNumber(data.next, counterId, avgNumber);
+                requestAvgNumber(repository, data.next, counterId, avgNumber);
             }
         }
     };
@@ -315,7 +316,7 @@ function init() {
 	var lastWeek = getLastWeekDate();
 	var lastMonth = getLastMonthDate();
 
-	var lastCheckDate = localStorage.getItem('lastCheckDate');
+	var lastCheckDate = localStorage.getItem('lastCheckDate' + '_' + current_repo);
     var isLocal = false;
     // If datas were already checked today, restore them from storage 
     if (new Date(lastCheckDate) >= today) {
@@ -339,7 +340,7 @@ function init() {
 
     document.getElementById('h').innerHTML = current_repo.toUpperCase();
 
-    localStorage.setItem('lastCheckDate', today);
+    localStorage.setItem('lastCheckDate' + '_' + current_repo, today);
 }
 
 init();
