@@ -1,5 +1,5 @@
 
-import { lastWeekDate } from './date_helper.js';
+import { lastWeekDate, oneWeekLater } from './date_helper.js';
 import { getReport } from './response_time_report.js';
 
 export default function handler(request, response) {
@@ -12,8 +12,9 @@ export default function handler(request, response) {
     }
 
     const sinceDate = request.query.since ? new Date(request.query.since) : lastWeekDate();
+    const untilDate =  request.query.until ? new Date(request.query.until) : oneWeekLater(sinceDate);
 
-    getReport(sinceDate, (data) => {
+    getReport(sinceDate, untilDate, (data) => {
         response.status(200).json(data);
     });
 }

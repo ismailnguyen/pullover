@@ -56,22 +56,19 @@ function median(values) {
     return (values[half - 1] + values[half]) / 2.0;
 }
 
-function getPullRequestUrlWithQuery(sinceDate) {
-    const dateString = sinceDate.getFullYear() + '-' + (parseInt(sinceDate.getMonth()) + 1) + '-' + sinceDate.getDate();
+function getPullRequestUrlWithQuery(sinceDate, untilDate) {
+    const sinceDateString = sinceDate.getFullYear() + '-' + (parseInt(sinceDate.getMonth()) + 1) + '-' + sinceDate.getDate();
+    const untilDateString = untilDate.getFullYear() + '-' + (parseInt(untilDate.getMonth()) + 1) + '-' + untilDate.getDate();
 
-    const oneWeekLater = new Date(sinceDate);
-    oneWeekLater.setDate(oneWeekLater.getDate() + 7);
-    const oneWeekLaterString = oneWeekLater.getFullYear() + '-' + (parseInt(oneWeekLater.getMonth()) + 1) + '-' + oneWeekLater.getDate();
-
-    const dateFilter = `updated_on>"${dateString}"%20AND%20updated_on<"${oneWeekLaterString}"`;
+    const dateFilter = `updated_on>"${sinceDateString}"%20AND%20updated_on<"${untilDateString}"`;
     const path = `${getBaseApiUrl()}?q=${dateFilter}`;
 
     return path;
 }
 
-function getPullRequests(sinceDate, nextPage, callback) {
+function getPullRequests(sinceDate, untilDate, nextPage, callback) {
     getAccessToken(accessToken => {
-        let path = getPullRequestUrlWithQuery(sinceDate);
+        let path = getPullRequestUrlWithQuery(sinceDate, untilDate);
         if (nextPage) {
             const urlObject = new URL(nextPage);
             path = urlObject.pathname + (urlObject.searchParams ? '?' + urlObject.searchParams : '');
@@ -146,19 +143,19 @@ function getPullRequestFullActivities(accessToken, pullRequestId, page, allActiv
     });
 }
 
-function getAllPullRequests(sinceDate, page, allPullRequests, callback) {
-    getPullRequests(sinceDate, page, response => {
+function getAllPullRequests(sinceDate, untilDate, page, allPullRequests, callback) {
+    getPullRequests(sinceDate, untilDate, page, response => {
         allPullRequests = allPullRequests.concat(response.values);
         if (response.next) {
-            getAllPullRequests(sinceDate, response.next, allPullRequests, callback);
+            getAllPullRequests(sinceDate, untilDate, response.next, allPullRequests, callback);
         } else {
             callback(response.accessToken, allPullRequests);
         }
     });
 }
 
-function getReport(sinceDate, callback) {
-    getAllPullRequests(sinceDate, null, [], (accessToken, pullRequests) => {
+function getReport(sinceDate, untilDate, callback) {
+    getAllPullRequests(sinceDate, untilDate, null, [], (accessToken, pullRequests) => {
         let prCount = 0; // counter used to check when last pr is reached to execute the rate calculation
         let hoursDifferencesList = [];
         let prDetails = [];

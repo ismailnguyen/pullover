@@ -5,6 +5,14 @@ function getLastWeekDate() {
     return new Date(lastWeek.setDate(diffToMonday));
 }
 
+function oneWeekLater(fromDate) {
+    const oneWeekLater = new Date(fromDate);
+    oneWeekLater.setDate(oneWeekLater.getDate() + 7);
+
+    return oneWeekLater;
+}
+
 module.exports = {
-    lastWeekDate: getLastWeekDate
+    lastWeekDate: getLastWeekDate,
+    oneWeekLater: oneWeekLater
 };
