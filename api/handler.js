@@ -1,4 +1,3 @@
-
 import { lastWeekDate, oneWeekLater } from './date_helper.js';
 import { getReport } from './response_time_report.js';
 
@@ -13,7 +12,7 @@ export default function handler(request, response) {
 
     const sinceDate = request.query.since ? new Date(request.query.since) : lastWeekDate();
     const untilDate =  request.query.until ? new Date(request.query.until) : oneWeekLater(sinceDate);
-    const repository =  request.query.repo ? new Date(request.query.repo) : process.env.DEFAULT_BITBUCKET_REPOSITORY_NAME;
+    const repository =  request.query.repo ? request.query.repo : process.env.DEFAULT_BITBUCKET_REPOSITORY_NAME;
 
     getReport(repository, sinceDate, untilDate, (data) => {
         response.status(200).json(data);
