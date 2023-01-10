@@ -8,7 +8,6 @@ if (URL == null) {
 
 const env = process && process.env ? process.env : {};
 const account_name = env.BITBUCKET_ACCOUNT_NAME;
-const repository = env.BITBUCKET_REPOSITORY_NAME;
 
 function getAccessToken(callback) {
     const options = {
@@ -37,7 +36,7 @@ function getAccessToken(callback) {
     req.end();
 }
 
-function getBaseApiUrl() {
+function getBaseApiUrl(repository) {
     return `/2.0/repositories/${account_name}/${repository}/pullrequests`;
 }
 
@@ -61,14 +60,14 @@ function getPullRequestUrlWithQuery(sinceDate, untilDate) {
     const untilDateString = untilDate.getFullYear() + '-' + (parseInt(untilDate.getMonth()) + 1) + '-' + untilDate.getDate();
 
     const dateFilter = `updated_on>"${sinceDateString}"%20AND%20updated_on<"${untilDateString}"`;
-    const path = `${getBaseApiUrl()}?q=${dateFilter}`;
+    const path = `${getBaseApiUrl(repository)}?q=${dateFilter}`;
 
     return path;
 }
 
-function getPullRequests(sinceDate, untilDate, nextPage, callback) {
+function getPullRequests(repository, sinceDate, untilDate, nextPage, callback) {
     getAccessToken(accessToken => {
-        let path = getPullRequestUrlWithQuery(sinceDate, untilDate);
+        let path = getPullRequestUrlWithQuery(repository, sinceDate, untilDate);
         if (nextPage) {
             const urlObject = new URL(nextPage);
             path = urlObject.pathname + (urlObject.searchParams ? '?' + urlObject.searchParams : '');
@@ -102,7 +101,7 @@ function getPullRequests(sinceDate, untilDate, nextPage, callback) {
 }
 
 function getPullRequestActivities(accessToken, pullRequestId, nextPage, callback) {
-    let path = `${getBaseApiUrl()}/${pullRequestId}/activity`;
+    let path = `${getBaseApiUrl(repository)}/${pullRequestId}/activity`;
     if (nextPage) {
         const urlObject = new URL(nextPage);
         path = urlObject.pathname + (urlObject.searchParams ? '?' + urlObject.searchParams : '');
@@ -132,30 +131,30 @@ function getPullRequestActivities(accessToken, pullRequestId, nextPage, callback
     req.end();
 }
 
-function getPullRequestFullActivities(accessToken, pullRequestId, page, allActivities, isLastPullRequest, callback) {
-    getPullRequestActivities(accessToken, pullRequestId, page, response => {
+function getPullRequestFullActivities(repository, accessToken, pullRequestId, page, allActivities, isLastPullRequest, callback) {
+    getPullRequestActivities(repository, accessToken, pullRequestId, page, response => {
         allActivities = allActivities.concat(response.values);
         if (response.next) {
-            getPullRequestFullActivities(accessToken, pullRequestId, response.next, allActivities, isLastPullRequest, callback);
+            getPullRequestFullActivities(repository, accessToken, pullRequestId, response.next, allActivities, isLastPullRequest, callback);
         } else {
             callback(allActivities, isLastPullRequest);
         }
     });
 }
 
-function getAllPullRequests(sinceDate, untilDate, page, allPullRequests, callback) {
-    getPullRequests(sinceDate, untilDate, page, response => {
+function getAllPullRequests(repository, sinceDate, untilDate, page, allPullRequests, callback) {
+    getPullRequests(repository, sinceDate, untilDate, page, response => {
         allPullRequests = allPullRequests.concat(response.values);
         if (response.next) {
-            getAllPullRequests(sinceDate, untilDate, response.next, allPullRequests, callback);
+            getAllPullRequests(repository, sinceDate, untilDate, response.next, allPullRequests, callback);
         } else {
             callback(response.accessToken, allPullRequests);
         }
     });
 }
 
-function getReport(sinceDate, untilDate, callback) {
-    getAllPullRequests(sinceDate, untilDate, null, [], (accessToken, pullRequests) => {
+function getReport(repository, sinceDate, untilDate, callback) {
+    getAllPullRequests(repository, sinceDate, untilDate, null, [], (accessToken, pullRequests) => {
         let prCount = 0; // counter used to check when last pr is reached to execute the rate calculation
         let hoursDifferencesList = [];
         let prDetails = [];
@@ -174,7 +173,7 @@ function getReport(sinceDate, untilDate, callback) {
 
             const isLastPullRequest = prCount == pullRequests.length;
 
-            getPullRequestFullActivities(accessToken, pullRequest.id, null, [], isLastPullRequest, (fullActivities, executeCalcul) => {
+            getPullRequestFullActivities(repository, accessToken, pullRequest.id, null, [], isLastPullRequest, (fullActivities, executeCalcul) => {
                 const comments = fullActivities.filter(activity => activity.comment).map(activity => activity.comment.created_on);
                 const approvals = fullActivities.filter(activity => activity.approval).map(activity => activity.approval.date);
                 const changesRequests = fullActivities.filter(activity => activity.changes_requested).map(activity => activity.changes_requested.date);
