@@ -100,7 +100,7 @@ function getPullRequests(repository, sinceDate, untilDate, nextPage, callback) {
     });
 }
 
-function getPullRequestActivities(accessToken, pullRequestId, nextPage, callback) {
+function getPullRequestActivities(repository, accessToken, pullRequestId, nextPage, callback) {
     let path = `${getBaseApiUrl(repository)}/${pullRequestId}/activity`;
     if (nextPage) {
         const urlObject = new URL(nextPage);
