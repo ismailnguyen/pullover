@@ -169,7 +169,6 @@ body {
 }
 .btn__content {
   font-family: Tomorrow, sans-serif;
-  text-transform: uppercase;
   font-weight: 700;
 }
 
@@ -228,7 +227,7 @@ body {
   min-height: 70vh;
   font-family: "Space Mono", monospace;
   font-family: "Share Tech Mono", monospace;
-  overflow: hidden;
+  overflow: scroll;
   font-size: 14px;
   line-height: 1.9;
   margin: 0 0.5em;

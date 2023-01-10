@@ -123,31 +123,9 @@ function autologin() {
         return;
     }
 
-    var request = new XMLHttpRequest();
-    request.open('POST', 'https://bitbucket.org/site/oauth2/access_token', true);
-	request.setRequestHeader("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8");
-    request.setRequestHeader("Authorization", "Basic " + btoa(clientId + ':' + secret));
-    request.send('grant_type=client_credentials');
-
-    request.onreadystatechange = function() {
-        if (this.readyState == XMLHttpRequest.DONE && this.status == 200) {
-            var response = JSON.parse(request.responseText);
-            var access_token = response.access_token;
-            localStorage.setItem('bitbucket_access_token', access_token);
-            setTimeout(function() {
-                window.location.href = 'home.html';
-            }, 2000)
-        } else if (this.status !== 200) {
-            alert('Error, please try again or check your credentials.');
-            setTimeout(function() {
-                window.location.href = 'login.html';
-            }, 2000)
-        }
-    };
-
-    request.onerror = function() {
-        console.log('something went wrong', request);
-    };
+    setTimeout(function() {
+        window.location.href = 'home.html';
+    }, 2000);
 }
 
 autologin();
