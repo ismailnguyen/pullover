@@ -11,7 +11,9 @@ export default function handler(request, response) {
         return;
     }
 
-    getReport(lastWeekDate(), (data) => {
+    const sinceDate = request.query.since ? new Date(request.query.since) : lastWeekDate();
+
+    getReport(sinceDate, (data) => {
         response.status(200).json(data);
     });
 }
