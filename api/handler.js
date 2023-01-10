@@ -1,5 +1,5 @@
 
-import { lastWeek } from './date_helper.js';
+import { lastWeekDate } from './date_helper.js';
 import { getReport } from './response_time_report.js';
 
 export default function handler(request, response) {
@@ -10,7 +10,7 @@ export default function handler(request, response) {
 
         return;
     }
-    getReport(lastWeek(), (data) => {
+    getReport(lastWeekDate(), (data) => {
         response.status(200).json({
             body: data
         });
