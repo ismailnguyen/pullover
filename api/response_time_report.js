@@ -55,7 +55,7 @@ function median(values) {
     return (values[half - 1] + values[half]) / 2.0;
 }
 
-function getPullRequestUrlWithQuery(sinceDate, untilDate) {
+function getPullRequestUrlWithQuery(repository, sinceDate, untilDate) {
     const sinceDateString = sinceDate.getFullYear() + '-' + (parseInt(sinceDate.getMonth()) + 1) + '-' + sinceDate.getDate();
     const untilDateString = untilDate.getFullYear() + '-' + (parseInt(untilDate.getMonth()) + 1) + '-' + untilDate.getDate();
 
